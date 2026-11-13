@@ -87,3 +87,72 @@
 }
 
 %end
+
+// ==========================================
+// CUSTOM ENHANCEMENTS: CAMERA & PRIVACY
+// ==========================================
+
+#import <AVFoundation/AVFoundation.h>
+
+// 1. Ultra-Wide (0.5x) Camera & High-Quality Video Messages (Circles)
+%hook AVCaptureDeviceDiscoverySession
+
++ (instancetype)discoverySessionWithDeviceTypes:(NSArray<AVCaptureDeviceType> *)deviceTypes 
+                                      mediaType:(AVMediaType)mediaType 
+                                       position:(AVCaptureDevicePosition)position {
+    BOOL enabled = [[NSUserDefaults standardUserDefaults] boolForKey:kEnableUltraWideCamera];
+    if (enabled && @available(iOS 13.0, *)) {
+        NSMutableArray *newTypes = [deviceTypes mutableCopy];
+        if (![newTypes containsObject:AVCaptureDeviceTypeBuiltInUltraWideCamera]) {
+            [newTypes addObject:AVCaptureDeviceTypeBuiltInUltraWideCamera];
+        }
+        return %orig(newTypes, mediaType, position);
+    }
+    return %orig;
+}
+
+%end
+
+// 2. Secret / View-Once Media Bypass (Block screenshot notification)
+%hook UIApplication
+
+- (void)userDidTakeScreenshotNotification:(NSNotification *)notification {
+    BOOL enabled = [[NSUserDefaults standardUserDefaults] boolForKey:kEnableViewOnceBypass];
+    if (enabled) {
+        return; // Suppress screenshot notification
+    }
+    %orig;
+}
+
+%end
+
+// 3. Call Confirmation Prompt
+%hook ChatController
+
+- (void)startCall:(BOOL)isVideo {
+    BOOL enabled = [[NSUserDefaults standardUserDefaults] boolForKey:kEnableCallConfirmation];
+    if (!enabled) {
+        %orig(isVideo);
+        return;
+    }
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Подтверждение звонка"
+                                                                   message:@"Вы уверены, что хотите позвонить?"
+                                                            preferredStyle:UIAlertControllerStyleAlert];
+    
+    UIAlertAction *callAction = [UIAlertAction actionWithTitle:@"Позвонить" 
+                                                         style:UIAlertActionStyleDefault 
+                                                       handler:^(UIAlertAction *action) {
+        %orig(isVideo);
+    }];
+    
+    UIAlertAction *cancelAction = [UIAlertAction actionWithTitle:@"Отмена" 
+                                                           style:UIAlertActionStyleCancel 
+                                                         handler:nil];
+    
+    [alert addAction:callAction];
+    [alert addAction:cancelAction];
+    
+    [self presentViewController:alert animated:YES completion:nil];
+}
+
+%end

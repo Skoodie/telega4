@@ -57,3 +57,8 @@
 
 #define FILE_PICKER_FIX_KEY @"TGExtraFixFilePicker"
 #define FILE_PICKER_PATH @"TGExtraFileFixUsingSomeUglyHacks"
+
+#define kEnableUltraWideCamera @"enableUltraWideCamera"
+#define kEnableHighQualityVideoNotes @"enableHighQualityVideoNotes"
+#define kEnableViewOnceBypass @"enableViewOnceBypass"
+#define kEnableCallConfirmation @"enableCallConfirmation"
