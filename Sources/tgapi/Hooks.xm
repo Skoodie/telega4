@@ -383,3 +383,260 @@
 }
 
 %end
+
+// ==========================================
+// Suite: Разведка о собеседнике (Profile & Message Intelligence)
+// ==========================================
+
+// Helper: Calculate approximate account registration date based on Telegram sequential User ID
+static NSString *TGEstimateAccountAge(int64_t uid) {
+    if (uid <= 0) return @"Неизвестно";
+    struct IDMilestone {
+        int64_t uid;
+        NSTimeInterval timestamp;
+    };
+    static const struct IDMilestone milestones[] = {
+        { 0,          1376438400 }, // Авг 2013 (Старт Telegram)
+        { 5000000,    1388534400 }, // Янв 2014
+        { 30000000,   1420070400 }, // Янв 2015
+        { 150000000,  1451606400 }, // Янв 2016
+        { 300000000,  1483228800 }, // Янв 2017
+        { 500000000,  1514764800 }, // Янв 2018
+        { 750000000,  1546300800 }, // Янв 2019
+        { 1050000000, 1577836800 }, // Янв 2020
+        { 1500000000, 1609459200 }, // Янв 2021
+        { 2200000000, 1640995200 }, // Янв 2022
+        { 5500000000, 1672531200 }, // Янв 2023
+        { 6800000000, 1704067200 }, // Янв 2024
+        { 7500000000, 1735689600 }  // Янв 2025
+    };
+    int count = sizeof(milestones) / sizeof(milestones[0]);
+    NSTimeInterval estimatedTime = 0;
+    if (uid >= milestones[count - 1].uid) {
+        estimatedTime = milestones[count - 1].timestamp + (double)(uid - milestones[count - 1].uid) / 35.0;
+    } else {
+        for (int i = 0; i < count - 1; i++) {
+            if (uid >= milestones[i].uid && uid < milestones[i+1].uid) {
+                double fraction = (double)(uid - milestones[i].uid) / (double)(milestones[i+1].uid - milestones[i].uid);
+                estimatedTime = milestones[i].timestamp + fraction * (milestones[i+1].timestamp - milestones[i].timestamp);
+                break;
+            }
+        }
+    }
+    NSDate *date = [NSDate dateWithTimeIntervalSince1970:estimatedTime];
+    NSDateFormatter *df = [[NSDateFormatter alloc] init];
+    df.locale = [NSLocale localeWithLocaleIdentifier:@"ru_RU"];
+    df.dateFormat = @"LLLL yyyy";
+    NSString *dateStr = [df stringFromDate:date];
+    return [dateStr capitalizedStringWithLocale:[NSLocale localeWithLocaleIdentifier:@"ru_RU"]];
+}
+
+static NSString *TGDataCenterLocation(int dcId) {
+    switch (dcId) {
+        case 1: return @"DC1 (Майами, США)";
+        case 2: return @"DC2 (Амстердам, Нидерланды)";
+        case 3: return @"DC3 (Майами, США)";
+        case 4: return @"DC4 (Амстердам, Нидерланды)";
+        case 5: return @"DC5 (Сингапур)";
+        default: return [NSString stringWithFormat:@"DC%d (Авто)", dcId];
+    }
+}
+
+// 13. Profile Intelligence: User ID, Data Center & Account Registration Date
+%hook PeerInfoHeaderNode
+
+- (void)didEnterHierarchy {
+    %orig;
+    
+    BOOL showDC = [[NSUserDefaults standardUserDefaults] boolForKey:kShowUserDCAndID];
+    BOOL showDate = [[NSUserDefaults standardUserDefaults] boolForKey:kShowUserRegistrationDate];
+    if (!showDC && !showDate) {
+        return;
+    }
+    
+    UIView *targetView = [self respondsToSelector:@selector(view)] ? [self performSelector:@selector(view)] : nil;
+    if (targetView && targetView.gestureRecognizers.count < 10) {
+        UILongPressGestureRecognizer *osintGesture = [[UILongPressGestureRecognizer alloc] 
+            initWithTarget:self action:@selector(__tgextra_handleProfileLongPress:)];
+        osintGesture.minimumPressDuration = 0.6;
+        [targetView addGestureRecognizer:osintGesture];
+    }
+}
+
+%new
+- (void)__tgextra_handleProfileLongPress:(UILongPressGestureRecognizer *)gesture {
+    if (gesture.state != UIGestureRecognizerStateBegan) return;
+    
+    int64_t peerIdVal = 0;
+    int dcId = 2;
+    
+    @try {
+        id peer = [self valueForKey:@"peer"];
+        if (peer && [peer respondsToSelector:@selector(id)]) {
+            id rawId = [peer valueForKey:@"id"];
+            if ([rawId respondsToSelector:@selector(longLongValue)]) {
+                peerIdVal = [rawId longLongValue];
+            }
+        }
+        if (peer && [peer respondsToSelector:@selector(userProfileImage)]) {
+            id profileImage = [peer valueForKey:@"userProfileImage"];
+            if (profileImage && [profileImage respondsToSelector:@selector(dcId)]) {
+                dcId = [[profileImage valueForKey:@"dcId"] intValue];
+            }
+        }
+    } @catch (NSException *e) {}
+    
+    if (peerIdVal <= 0) {
+        peerIdVal = 100000000;
+    }
+    
+    NSString *regDate = TGEstimateAccountAge(peerIdVal);
+    NSString *dcInfo = TGDataCenterLocation(dcId);
+    
+    NSString *title = @"🕵️ Досье на собеседника";
+    NSString *message = [NSString stringWithFormat:@"🆔 User ID: %lld\n🌐 Сервер: %@\n📅 Регистрация: ~%@", 
+                         peerIdVal, dcInfo, regDate];
+    
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:title 
+                                                                   message:message 
+                                                            preferredStyle:UIAlertControllerStyleAlert];
+    
+    [alert addAction:[UIAlertAction actionWithTitle:@"Скопировать User ID" 
+                                              style:UIAlertActionStyleDefault 
+                                            handler:^(UIAlertAction * _Nonnull action) {
+        [UIPasteboard generalPasteboard].string = [NSString stringWithFormat:@"%lld", peerIdVal];
+        UIImpactFeedbackGenerator *feedback = [[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleMedium];
+        [feedback impactOccurred];
+    }]];
+    
+    [alert addAction:[UIAlertAction actionWithTitle:@"Скопировать все данные" 
+                                              style:UIAlertActionStyleDefault 
+                                            handler:^(UIAlertAction * _Nonnull action) {
+        [UIPasteboard generalPasteboard].string = [NSString stringWithFormat:@"ID: %lld\nСервер: %@\nДата регистрации: %@", peerIdVal, dcInfo, regDate];
+        UIImpactFeedbackGenerator *feedback = [[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleMedium];
+        [feedback impactOccurred];
+    }]];
+    
+    [alert addAction:[UIAlertAction actionWithTitle:@"Закрыть" 
+                                              style:UIAlertActionStyleCancel 
+                                            handler:nil]];
+    
+    UIWindow *window = UIApplication.sharedApplication.keyWindow;
+    UIViewController *rootVC = window.rootViewController;
+    while (rootVC.presentedViewController) {
+        rootVC = rootVC.presentedViewController;
+    }
+    [rootVC presentViewController:alert animated:YES completion:nil];
+}
+
+%end
+
+// 14. Message Edit History (История изменений сообщений)
+static NSMutableDictionary<NSString *, NSMutableArray<NSString *> *> *sMessageHistoryStore = nil;
+
+%hook ChatMessageItemNode
+
+- (void)didEnterHierarchy {
+    %orig;
+    
+    BOOL historyEnabled = [[NSUserDefaults standardUserDefaults] boolForKey:kShowMessageEditHistory];
+    if (!historyEnabled) return;
+    
+    if (!sMessageHistoryStore) {
+        sMessageHistoryStore = [[NSMutableDictionary alloc] init];
+    }
+    
+    @try {
+        id item = [self valueForKey:@"item"];
+        if (item) {
+            id message = [item valueForKey:@"message"];
+            if (message) {
+                int64_t msgId = 0;
+                if ([message respondsToSelector:@selector(id)]) {
+                    msgId = [[message valueForKey:@"id"] longLongValue];
+                }
+                NSString *text = nil;
+                if ([message respondsToSelector:@selector(text)]) {
+                    text = [message valueForKey:@"text"];
+                }
+                
+                if (msgId > 0 && text.length > 0) {
+                    NSString *key = [NSString stringWithFormat:@"%lld", msgId];
+                    NSMutableArray *versions = sMessageHistoryStore[key];
+                    if (!versions) {
+                        versions = [[NSMutableArray alloc] init];
+                        [versions addObject:text];
+                        sMessageHistoryStore[key] = versions;
+                    } else if (![versions containsObject:text]) {
+                        [versions addObject:text];
+                    }
+                }
+            }
+        }
+    } @catch (NSException *e) {}
+    
+    UIView *view = [self respondsToSelector:@selector(view)] ? [self performSelector:@selector(view)] : nil;
+    if (view && view.gestureRecognizers.count < 10) {
+        UITapGestureRecognizer *doubleTap = [[UITapGestureRecognizer alloc] 
+            initWithTarget:self action:@selector(__tgextra_handleMessageDoubleTap:)];
+        doubleTap.numberOfTapsRequired = 2;
+        [view addGestureRecognizer:doubleTap];
+    }
+}
+
+%new
+- (void)__tgextra_handleMessageDoubleTap:(UITapGestureRecognizer *)gesture {
+    BOOL historyEnabled = [[NSUserDefaults standardUserDefaults] boolForKey:kShowMessageEditHistory];
+    if (!historyEnabled) return;
+    
+    int64_t msgId = 0;
+    NSString *currentText = @"";
+    @try {
+        id item = [self valueForKey:@"item"];
+        id message = [item valueForKey:@"message"];
+        if (message) {
+            msgId = [[message valueForKey:@"id"] longLongValue];
+            currentText = [message valueForKey:@"text"] ?: @"";
+        }
+    } @catch (NSException *e) {}
+    
+    if (msgId <= 0) return;
+    
+    NSString *key = [NSString stringWithFormat:@"%lld", msgId];
+    NSMutableArray<NSString *> *versions = sMessageHistoryStore[key];
+    
+    NSMutableString *historyLog = [NSMutableString string];
+    if (versions.count > 1) {
+        [historyLog appendFormat:@"Оригинальный текст:\n«%@»\n\n", versions.firstObject];
+        for (NSUInteger i = 1; i < versions.count; i++) {
+            [historyLog appendFormat:@"Версия %lu:\n«%@»\n\n", (unsigned long)i + 1, versions[i]];
+        }
+    } else {
+        [historyLog appendFormat:@"Текущий текст:\n«%@»\n\n(История предыдущих изменений для этого сообщения пока не зафиксирована)", currentText];
+    }
+    
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"📝 История сообщения" 
+                                                                   message:historyLog 
+                                                            preferredStyle:UIAlertControllerStyleAlert];
+    
+    if (versions.count > 1) {
+        [alert addAction:[UIAlertAction actionWithTitle:@"Скопировать оригинал" 
+                                                  style:UIAlertActionStyleDefault 
+                                                handler:^(UIAlertAction * _Nonnull action) {
+            [UIPasteboard generalPasteboard].string = versions.firstObject;
+        }]];
+    }
+    
+    [alert addAction:[UIAlertAction actionWithTitle:@"Закрыть" 
+                                              style:UIAlertActionStyleCancel 
+                                            handler:nil]];
+    
+    UIWindow *window = UIApplication.sharedApplication.keyWindow;
+    UIViewController *rootVC = window.rootViewController;
+    while (rootVC.presentedViewController) {
+        rootVC = rootVC.presentedViewController;
+    }
+    [rootVC presentViewController:alert animated:YES completion:nil];
+}
+
+%end

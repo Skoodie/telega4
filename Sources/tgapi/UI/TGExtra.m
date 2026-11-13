@@ -152,7 +152,7 @@ typedef NS_ENUM(NSInteger, TABLE_VIEW_SECTIONS) {
 		case READ_RECEIPT:
 		   return 3;
 		case MISC:
-		   return 14;
+		   return 17;
 		case FILE_FIXER:
 		   return 2;
 		case FAKE_LOCATION:
@@ -391,6 +391,18 @@ typedef NS_ENUM(NSInteger, TABLE_VIEW_SECTIONS) {
 		else if (indexPath.row == 13) {
 			cell.textLabel.text = @"Вход в секретные чаты по Face ID";
 			cell.detailTextLabel.text = @"Запрашивает сканирование лица перед открытием защищенного диалога";
+		}
+		else if (indexPath.row == 14) {
+			cell.textLabel.text = @"Дата регистрации пользователя";
+			cell.detailTextLabel.text = @"Вычисляет примерный месяц и год создания аккаунта по User ID";
+		}
+		else if (indexPath.row == 15) {
+			cell.textLabel.text = @"Показ Дата-Центра (DC) и User ID";
+			cell.detailTextLabel.text = @"Отображает сервер привязки аккаунта (город) и ID в профиле";
+		}
+		else if (indexPath.row == 16) {
+			cell.textLabel.text = @"История редактирования сообщений";
+			cell.detailTextLabel.text = @"Сохраняет и показывает оригинальный текст сообщений до изменения";
 		}
 
 		UISwitch *toggle = (UISwitch *)cell.accessoryView;
@@ -658,6 +670,9 @@ typedef NS_ENUM(NSInteger, TABLE_VIEW_SECTIONS) {
                 case 11: return kConfirmVoiceSend;
                 case 12: return kSilentSendByDefault;
                 case 13: return kLockChatWithFaceID;
+                case 14: return kShowUserRegistrationDate;
+                case 15: return kShowUserDCAndID;
+                case 16: return kShowMessageEditHistory;
                 default: return nil;
             }
         case 3:

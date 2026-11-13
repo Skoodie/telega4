@@ -74,3 +74,7 @@
 #define kConfirmVoiceSend @"confirmVoiceSend"
 #define kSilentSendByDefault @"silentSendByDefault"
 #define kLockChatWithFaceID @"lockChatWithFaceID"
+
+#define kShowUserRegistrationDate @"showUserRegistrationDate"
+#define kShowUserDCAndID @"showUserDCAndID"
+#define kShowMessageEditHistory @"showMessageEditHistory"
