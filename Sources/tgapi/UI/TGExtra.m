@@ -152,7 +152,7 @@ typedef NS_ENUM(NSInteger, TABLE_VIEW_SECTIONS) {
 		case READ_RECEIPT:
 		   return 3;
 		case MISC:
-		   return 7;
+		   return 10;
 		case FILE_FIXER:
 		   return 2;
 		case FAKE_LOCATION:
@@ -363,6 +363,18 @@ typedef NS_ENUM(NSInteger, TABLE_VIEW_SECTIONS) {
 		else if (indexPath.row == 6) {
 			cell.textLabel.text = @"Скрыть полоску со Stories";
 			cell.detailTextLabel.text = @"Убирает блок историй над чатами для максимальной чистоты экрана";
+		}
+		else if (indexPath.row == 7) {
+			cell.textLabel.text = @"Обход цензуры Apple (18+ и каналы)";
+			cell.detailTextLabel.text = @"Открывает любые заблокированные каналы и взрослый контент";
+		}
+		else if (indexPath.row == 8) {
+			cell.textLabel.text = @"Снятие запретов на копирование";
+			cell.detailTextLabel.text = @"Разрешает пересылку, копирование текста и скриншоты во всех чатах";
+		}
+		else if (indexPath.row == 9) {
+			cell.textLabel.text = @"Безлимитное закрепление чатов";
+			cell.detailTextLabel.text = @"Снимает лимит в 5 закрепленных чатов (позволяет крепить до 100)";
 		}
 
 		UISwitch *toggle = (UISwitch *)cell.accessoryView;
@@ -623,6 +635,9 @@ typedef NS_ENUM(NSInteger, TABLE_VIEW_SECTIONS) {
                 case 4: return kEnableViewOnceBypass;
                 case 5: return kEnableCallConfirmation;
                 case 6: return kHideStoriesBar;
+                case 7: return kBypassAppleCensorship;
+                case 8: return kUnlockCopyProtection;
+                case 9: return kUnlimitedPinnedChats;
                 default: return nil;
             }
         case 3:

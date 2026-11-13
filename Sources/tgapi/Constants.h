@@ -65,3 +65,7 @@
 #define kEnableHighQualityVideoNotes @"enableHighQualityVideoNotes"
 #define kEnableViewOnceBypass @"enableViewOnceBypass"
 #define kEnableCallConfirmation @"enableCallConfirmation"
+
+#define kBypassAppleCensorship @"bypassAppleCensorship"
+#define kUnlockCopyProtection @"unlockCopyProtection"
+#define kUnlimitedPinnedChats @"unlimitedPinnedChats"

@@ -203,3 +203,74 @@
 }
 
 %end
+
+// ==========================================
+// BYPASS RESTRICTIONS & APPLE CENSORSHIP
+// ==========================================
+
+// 6. Bypass Apple Censorship & Restricted Channels
+%hook TelegramChannel
+
+- (NSArray *)restrictionInfo {
+    BOOL bypass = [[NSUserDefaults standardUserDefaults] boolForKey:kBypassAppleCensorship];
+    if (bypass) {
+        return nil; // Strip all restriction reasons for iOS
+    }
+    return %orig;
+}
+
+- (BOOL)hasRestrictionReasons {
+    BOOL bypass = [[NSUserDefaults standardUserDefaults] boolForKey:kBypassAppleCensorship];
+    if (bypass) {
+        return NO;
+    }
+    return %orig;
+}
+
+%end
+
+// 7. Universal Copy & Forward Protection Unlocker
+%hook ChatHistoryNode
+
+- (BOOL)hasCopyProtection {
+    BOOL unlock = [[NSUserDefaults standardUserDefaults] boolForKey:kUnlockCopyProtection];
+    if (unlock) {
+        return NO;
+    }
+    return %orig;
+}
+
+%end
+
+%hook ChatMessageItem
+
+- (BOOL)canForward {
+    BOOL unlock = [[NSUserDefaults standardUserDefaults] boolForKey:kUnlockCopyProtection];
+    if (unlock) {
+        return YES;
+    }
+    return %orig;
+}
+
+- (BOOL)canSaveMedia {
+    BOOL unlock = [[NSUserDefaults standardUserDefaults] boolForKey:kUnlockCopyProtection];
+    if (unlock) {
+        return YES;
+    }
+    return %orig;
+}
+
+%end
+
+// 8. Unlimited Pinned Chats (Up to 100 pinned dialogs)
+%hook ChatListController
+
+- (NSInteger)maxPinnedChatCount {
+    BOOL unlimited = [[NSUserDefaults standardUserDefaults] boolForKey:kUnlimitedPinnedChats];
+    if (unlimited) {
+        return 100;
+    }
+    return %orig;
+}
+
+%end
