@@ -1,4 +1,16 @@
 #import "Headers.h"
+#import <AVFoundation/AVFoundation.h>
+#import <LocalAuthentication/LocalAuthentication.h>
+
+@interface ChatController : UIViewController
+- (void)presentViewController:(UIViewController *)viewControllerToPresent animated:(BOOL)flag completion:(void (^)(void))completion;
+@end
+
+@interface SecretChatController : UIViewController
+@end
+
+@interface TGSecretMediaViewer : UIViewController
+@end
 
 #define kChannelsReadHistory -871347913
 
@@ -95,21 +107,21 @@
 // CUSTOM ENHANCEMENTS: CAMERA & PRIVACY
 // ==========================================
 
-#import <AVFoundation/AVFoundation.h>
-
 // 1. Ultra-Wide (0.5x) Camera & High-Quality Video Messages (Circles)
 %hook AVCaptureDeviceDiscoverySession
 
-+ (instancetype)discoverySessionWithDeviceTypes:(NSArray<AVCaptureDeviceType> *)deviceTypes 
-                                      mediaType:(AVMediaType)mediaType 
-                                       position:(AVCaptureDevicePosition)position {
++ (instancetype)discoverySessionWithDeviceTypes:(NSArray *)deviceTypes 
+                                      mediaType:(NSString *)mediaType 
+                                       position:(NSInteger)position {
     BOOL enabled = [[NSUserDefaults standardUserDefaults] boolForKey:kEnableUltraWideCamera];
-    if (enabled && @available(iOS 13.0, *)) {
-        NSMutableArray *newTypes = [deviceTypes mutableCopy];
-        if (![newTypes containsObject:AVCaptureDeviceTypeBuiltInUltraWideCamera]) {
-            [newTypes addObject:AVCaptureDeviceTypeBuiltInUltraWideCamera];
+    if (enabled) {
+        if (@available(iOS 13.0, *)) {
+            NSMutableArray *newTypes = [deviceTypes mutableCopy];
+            if (![newTypes containsObject:AVCaptureDeviceTypeBuiltInUltraWideCamera]) {
+                [newTypes addObject:AVCaptureDeviceTypeBuiltInUltraWideCamera];
+            }
+            return %orig(newTypes, mediaType, position);
         }
-        return %orig(newTypes, mediaType, position);
     }
     return %orig;
 }
