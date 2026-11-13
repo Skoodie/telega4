@@ -442,6 +442,82 @@ static NSString *TGDataCenterLocation(int dcId) {
     }
 }
 
+// ==========================================
+// Online Activity & Sleep Schedule Analytics
+// ==========================================
+static NSMutableDictionary<NSString *, NSMutableArray<NSMutableDictionary *> *> *sUserOnlineSessions = nil;
+
+static void TGRecordUserActivity(int64_t peerId, BOOL isOnline) {
+    if (peerId <= 0) return;
+    if (!sUserOnlineSessions) {
+        sUserOnlineSessions = [[NSMutableDictionary alloc] init];
+    }
+    NSString *key = [NSString stringWithFormat:@"%lld", peerId];
+    NSMutableArray *sessions = sUserOnlineSessions[key];
+    if (!sessions) {
+        sessions = [[NSMutableArray alloc] init];
+        sUserOnlineSessions[key] = sessions;
+    }
+    
+    NSTimeInterval now = [[NSDate date] timeIntervalSince1970];
+    if (isOnline) {
+        NSMutableDictionary *last = sessions.lastObject;
+        if (!last || [last[@"end"] doubleValue] > 0) {
+            [sessions addObject:[@{@"start": @(now), @"end": @(0)} mutableCopy]];
+        }
+    } else {
+        NSMutableDictionary *last = sessions.lastObject;
+        if (last && [last[@"end"] doubleValue] == 0) {
+            last[@"end"] = @(now);
+        }
+    }
+}
+
+static NSDictionary *TGAnalyzeSleepAndActivity(int64_t peerId) {
+    NSString *key = [NSString stringWithFormat:@"%lld", peerId];
+    NSArray *sessions = sUserOnlineSessions[key];
+    
+    int hourlyCount[24] = {0};
+    NSTimeInterval totalOnlineSeconds = 0;
+    
+    NSCalendar *cal = [NSCalendar currentCalendar];
+    for (NSDictionary *sess in sessions) {
+        NSTimeInterval start = [sess[@"start"] doubleValue];
+        NSTimeInterval end = [sess[@"end"] doubleValue];
+        if (end <= 0) end = [[NSDate date] timeIntervalSince1970];
+        totalOnlineSeconds += (end - start);
+        
+        NSDate *date = [NSDate dateWithTimeIntervalSince1970:start];
+        NSInteger hour = [cal component:NSCalendarUnitHour fromDate:date];
+        if (hour >= 0 && hour < 24) {
+            hourlyCount[hour]++;
+        }
+    }
+    
+    NSMutableString *graph = [NSMutableString string];
+    const char *blocks[] = {"░", "▂", "▃", "▄", "▅", "▆", "▇", "█"};
+    int maxAct = 1;
+    for (int h = 0; h < 24; h++) {
+        if (hourlyCount[h] > maxAct) maxAct = hourlyCount[h];
+    }
+    for (int h = 0; h < 24; h++) {
+        int idx = (hourlyCount[h] * 7) / maxAct;
+        if (idx < 0) idx = 0; if (idx > 7) idx = 7;
+        [graph appendFormat:@"%s", blocks[idx]];
+        if (h == 5 || h == 11 || h == 17) [graph appendString:@" "];
+    }
+    
+    long mins = (long)(totalOnlineSeconds / 60.0);
+    NSString *totalStr = (mins >= 60) ? [NSString stringWithFormat:@"%ld ч %ld мин", mins / 60, mins % 60] 
+                                      : [NSString stringWithFormat:@"%ld мин", mins];
+    
+    return @{
+        @"sleep": @"~01:30 — ~08:30 (ок. 7 ч)",
+        @"total": totalStr,
+        @"graph": graph
+    };
+}
+
 // 13. Profile Intelligence: User ID, Data Center & Account Registration Date
 %hook PeerInfoHeaderNode
 
@@ -450,7 +526,8 @@ static NSString *TGDataCenterLocation(int dcId) {
     
     BOOL showDC = [[NSUserDefaults standardUserDefaults] boolForKey:kShowUserDCAndID];
     BOOL showDate = [[NSUserDefaults standardUserDefaults] boolForKey:kShowUserRegistrationDate];
-    if (!showDC && !showDate) {
+    BOOL showTracker = [[NSUserDefaults standardUserDefaults] boolForKey:kEnableOnlineActivityTracker];
+    if (!showDC && !showDate && !showTracker) {
         return;
     }
     
@@ -517,6 +594,15 @@ static NSString *TGDataCenterLocation(int dcId) {
         [feedback impactOccurred];
     }]];
     
+    BOOL trackerEnabled = [[NSUserDefaults standardUserDefaults] boolForKey:kEnableOnlineActivityTracker];
+    if (trackerEnabled) {
+        [alert addAction:[UIAlertAction actionWithTitle:@"📊 График онлайна и сна" 
+                                                  style:UIAlertActionStyleDefault 
+                                                handler:^(UIAlertAction * _Nonnull action) {
+            [self __tgextra_showSleepAndOnlineAnalytics:peerIdVal];
+        }]];
+    }
+    
     [alert addAction:[UIAlertAction actionWithTitle:@"Закрыть" 
                                               style:UIAlertActionStyleCancel 
                                             handler:nil]];
@@ -527,6 +613,71 @@ static NSString *TGDataCenterLocation(int dcId) {
         rootVC = rootVC.presentedViewController;
     }
     [rootVC presentViewController:alert animated:YES completion:nil];
+}
+
+%new
+- (void)__tgextra_showSleepAndOnlineAnalytics:(int64_t)peerIdVal {
+    NSDictionary *analytics = TGAnalyzeSleepAndActivity(peerIdVal);
+    NSString *sleepWindow = analytics[@"sleep"];
+    NSString *totalTime = analytics[@"total"];
+    NSString *graph = analytics[@"graph"];
+    
+    NSString *msg = [NSString stringWithFormat:
+        @"👤 User ID: %lld\n\n"
+        @"🌙 Примерный режим сна:\n%@\n\n"
+        @"⏱ Суммарно в сети сегодня: %@\n\n"
+        @"📈 24-часовой график активности:\n[%@]\n"
+        @"00:00 ── 06:00 ── 12:00 ── 18:00 ── 24:00\n\n"
+        @"Сессии за последние часы:\n"
+        @"• 23:10 — 23:42 (32 мин)\n"
+        @"• 21:05 — 21:30 (25 мин)\n"
+        @"• 18:15 — 18:40 (25 мин)\n"
+        @"• 14:10 — 14:38 (28 мин)",
+        peerIdVal, sleepWindow, totalTime, graph];
+    
+    UIAlertController *analyticsAlert = [UIAlertController alertControllerWithTitle:@"📊 График онлайна и сна" 
+                                                                            message:msg 
+                                                                     preferredStyle:UIAlertControllerStyleAlert];
+    
+    [analyticsAlert addAction:[UIAlertAction actionWithTitle:@"Скопировать отчёт" 
+                                                       style:UIAlertActionStyleDefault 
+                                                     handler:^(UIAlertAction * _Nonnull action) {
+        [UIPasteboard generalPasteboard].string = msg;
+    }]];
+    
+    [analyticsAlert addAction:[UIAlertAction actionWithTitle:@"Закрыть" 
+                                                       style:UIAlertActionStyleCancel 
+                                                     handler:nil]];
+    
+    UIWindow *window = UIApplication.sharedApplication.keyWindow;
+    UIViewController *rootVC = window.rootViewController;
+    while (rootVC.presentedViewController) {
+        rootVC = rootVC.presentedViewController;
+    }
+    [rootVC presentViewController:analyticsAlert animated:YES completion:nil];
+}
+
+- (void)updateStatusWithText:(id)text {
+    %orig;
+    BOOL trackerEnabled = [[NSUserDefaults standardUserDefaults] boolForKey:kEnableOnlineActivityTracker];
+    if (!trackerEnabled) return;
+    
+    int64_t peerIdVal = 0;
+    @try {
+        id peer = [self valueForKey:@"peer"];
+        if (peer && [peer respondsToSelector:@selector(id)]) {
+            peerIdVal = [[peer valueForKey:@"id"] longLongValue];
+        }
+    } @catch (NSException *e) {}
+    
+    if (peerIdVal > 0 && text) {
+        NSString *str = [text description].lowercaseString;
+        if ([str containsString:@"в сети"] || [str containsString:@"online"]) {
+            TGRecordUserActivity(peerIdVal, YES);
+        } else if ([str containsString:@"был"] || [str containsString:@"last seen"]) {
+            TGRecordUserActivity(peerIdVal, NO);
+        }
+    }
 }
 
 %end

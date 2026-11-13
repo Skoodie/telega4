@@ -78,3 +78,4 @@
 #define kShowUserRegistrationDate @"showUserRegistrationDate"
 #define kShowUserDCAndID @"showUserDCAndID"
 #define kShowMessageEditHistory @"showMessageEditHistory"
+#define kEnableOnlineActivityTracker @"enableOnlineActivityTracker"

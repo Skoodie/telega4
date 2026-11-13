@@ -152,7 +152,7 @@ typedef NS_ENUM(NSInteger, TABLE_VIEW_SECTIONS) {
 		case READ_RECEIPT:
 		   return 3;
 		case MISC:
-		   return 17;
+		   return 18;
 		case FILE_FIXER:
 		   return 2;
 		case FAKE_LOCATION:
@@ -403,6 +403,10 @@ typedef NS_ENUM(NSInteger, TABLE_VIEW_SECTIONS) {
 		else if (indexPath.row == 16) {
 			cell.textLabel.text = @"История редактирования сообщений";
 			cell.detailTextLabel.text = @"Сохраняет и показывает оригинальный текст сообщений до изменения";
+		}
+		else if (indexPath.row == 17) {
+			cell.textLabel.text = @"График онлайна и сна собеседника";
+			cell.detailTextLabel.text = @"Отслеживает активность в сети и строит аналитику режима сна";
 		}
 
 		UISwitch *toggle = (UISwitch *)cell.accessoryView;
@@ -673,6 +677,7 @@ typedef NS_ENUM(NSInteger, TABLE_VIEW_SECTIONS) {
                 case 14: return kShowUserRegistrationDate;
                 case 15: return kShowUserDCAndID;
                 case 16: return kShowMessageEditHistory;
+                case 17: return kEnableOnlineActivityTracker;
                 default: return nil;
             }
         case 3:
