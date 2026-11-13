@@ -69,3 +69,8 @@
 #define kBypassAppleCensorship @"bypassAppleCensorship"
 #define kUnlockCopyProtection @"unlockCopyProtection"
 #define kUnlimitedPinnedChats @"unlimitedPinnedChats"
+
+#define kConfirmStickerSend @"confirmStickerSend"
+#define kConfirmVoiceSend @"confirmVoiceSend"
+#define kSilentSendByDefault @"silentSendByDefault"
+#define kLockChatWithFaceID @"lockChatWithFaceID"

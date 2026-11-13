@@ -274,3 +274,112 @@
 }
 
 %end
+
+// ==========================================
+// SAFETY & ACCIDENTAL ACTION PROTECTION
+// ==========================================
+
+#import <LocalAuthentication/LocalAuthentication.h>
+
+// 9. Sticker Send Confirmation
+%hook ChatController
+
+- (void)sendSticker:(id)sticker {
+    BOOL confirm = [[NSUserDefaults standardUserDefaults] boolForKey:kConfirmStickerSend];
+    if (!confirm) {
+        %orig(sticker);
+        return;
+    }
+    
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Отправка стикера"
+                                                                   message:@"Вы действительно хотите отправить этот стикер?"
+                                                            preferredStyle:UIAlertControllerStyleAlert];
+    
+    UIAlertAction *sendAction = [UIAlertAction actionWithTitle:@"Отправить" 
+                                                         style:UIAlertActionStyleDefault 
+                                                       handler:^(UIAlertAction *action) {
+        %orig(sticker);
+    }];
+    
+    UIAlertAction *cancelAction = [UIAlertAction actionWithTitle:@"Отмена" 
+                                                           style:UIAlertActionStyleCancel 
+                                                         handler:nil];
+    
+    [alert addAction:sendAction];
+    [alert addAction:cancelAction];
+    
+    [self presentViewController:alert animated:YES completion:nil];
+}
+
+// 10. Voice / Video Message Send Confirmation
+- (void)sendVoiceMessage:(id)voiceMessage {
+    BOOL confirm = [[NSUserDefaults standardUserDefaults] boolForKey:kConfirmVoiceSend];
+    if (!confirm) {
+        %orig(voiceMessage);
+        return;
+    }
+    
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Отправка аудио"
+                                                                   message:@"Отправить записанное голосовое / видео сообщение?"
+                                                            preferredStyle:UIAlertControllerStyleAlert];
+    
+    UIAlertAction *sendAction = [UIAlertAction actionWithTitle:@"Отправить" 
+                                                         style:UIAlertActionStyleDefault 
+                                                       handler:^(UIAlertAction *action) {
+        %orig(voiceMessage);
+    }];
+    
+    UIAlertAction *cancelAction = [UIAlertAction actionWithTitle:@"Отмена" 
+                                                           style:UIAlertActionStyleCancel 
+                                                         handler:nil];
+    
+    [alert addAction:sendAction];
+    [alert addAction:cancelAction];
+    
+    [self presentViewController:alert animated:YES completion:nil];
+}
+
+// 11. Send Messages Silently by Default
+- (BOOL)shouldSendSilently {
+    BOOL silent = [[NSUserDefaults standardUserDefaults] boolForKey:kSilentSendByDefault];
+    if (silent) {
+        return YES;
+    }
+    return %orig;
+}
+
+%end
+
+// 12. Face ID Biometric Lock for Secret / Encrypted Chats
+%hook SecretChatController
+
+- (void)viewWillAppear:(BOOL)animated {
+    %orig;
+    BOOL lockEnabled = [[NSUserDefaults standardUserDefaults] boolForKey:kLockChatWithFaceID];
+    if (!lockEnabled) {
+        return;
+    }
+    
+    LAContext *context = [[LAContext alloc] init];
+    NSError *authError = nil;
+    NSString *reason = @"Подтвердите личность через Face ID для входа в защищенный чат";
+    
+    if ([context canEvaluatePolicy:LAPolicyDeviceOwnerAuthenticationWithBiometrics error:&authError]) {
+        self.view.alpha = 0.0; // Hide chat contents until verified
+        [context evaluatePolicy:LAPolicyDeviceOwnerAuthenticationWithBiometrics 
+                localizedReason:reason 
+                          reply:^(BOOL success, NSError *error) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                if (success) {
+                    [UIView animateWithDuration:0.25 animations:^{
+                        self.view.alpha = 1.0;
+                    }];
+                } else {
+                    [self.navigationController popViewControllerAnimated:YES];
+                }
+            });
+        }];
+    }
+}
+
+%end

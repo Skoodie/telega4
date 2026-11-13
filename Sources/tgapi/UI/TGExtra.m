@@ -152,7 +152,7 @@ typedef NS_ENUM(NSInteger, TABLE_VIEW_SECTIONS) {
 		case READ_RECEIPT:
 		   return 3;
 		case MISC:
-		   return 10;
+		   return 14;
 		case FILE_FIXER:
 		   return 2;
 		case FAKE_LOCATION:
@@ -375,6 +375,22 @@ typedef NS_ENUM(NSInteger, TABLE_VIEW_SECTIONS) {
 		else if (indexPath.row == 9) {
 			cell.textLabel.text = @"Безлимитное закрепление чатов";
 			cell.detailTextLabel.text = @"Снимает лимит в 5 закрепленных чатов (позволяет крепить до 100)";
+		}
+		else if (indexPath.row == 10) {
+			cell.textLabel.text = @"Подтверждение отправки стикера";
+			cell.detailTextLabel.text = @"Предотвращает случайную отправку неподходящего стикера";
+		}
+		else if (indexPath.row == 11) {
+			cell.textLabel.text = @"Подтверждение голосовых и кружков";
+			cell.detailTextLabel.text = @"Спрашивает подтверждение перед отправкой аудиосообщения";
+		}
+		else if (indexPath.row == 12) {
+			cell.textLabel.text = @"Отправка «Без звука» по умолчанию";
+			cell.detailTextLabel.text = @"Все сообщения уходят без звукового сигнала для собеседника";
+		}
+		else if (indexPath.row == 13) {
+			cell.textLabel.text = @"Вход в секретные чаты по Face ID";
+			cell.detailTextLabel.text = @"Запрашивает сканирование лица перед открытием защищенного диалога";
 		}
 
 		UISwitch *toggle = (UISwitch *)cell.accessoryView;
@@ -638,6 +654,10 @@ typedef NS_ENUM(NSInteger, TABLE_VIEW_SECTIONS) {
                 case 7: return kBypassAppleCensorship;
                 case 8: return kUnlockCopyProtection;
                 case 9: return kUnlimitedPinnedChats;
+                case 10: return kConfirmStickerSend;
+                case 11: return kConfirmVoiceSend;
+                case 12: return kSilentSendByDefault;
+                case 13: return kLockChatWithFaceID;
                 default: return nil;
             }
         case 3:
