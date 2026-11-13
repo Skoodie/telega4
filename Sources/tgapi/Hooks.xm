@@ -46,6 +46,9 @@
 		case kChannelsReadHistory:
 		   handleChannelsReadReceipt(self, payload);
 		   break;
+		case kMessagesReadMessageContents:
+		   handleVoiceReadReceipt(self, payload);
+		   break;
 		default:
 		   break;
 		   
@@ -153,6 +156,50 @@
     [alert addAction:cancelAction];
     
     [self presentViewController:alert animated:YES completion:nil];
+}
+
+%end
+
+// 4. View-Once Media Persistence (Freeze countdown timer & keep photo alive)
+%hook TGSecretMediaViewer
+
+- (void)viewWillAppear:(BOOL)animated {
+    %orig;
+    BOOL enabled = [[NSUserDefaults standardUserDefaults] boolForKey:kEnableViewOnceBypass];
+    if (enabled) {
+        @try {
+            NSTimer *timer = [self valueForKey:@"destroyTimer"];
+            if (timer) {
+                [timer invalidate];
+            }
+            UIButton *saveBtn = [self valueForKey:@"saveButton"];
+            if (saveBtn) {
+                saveBtn.hidden = NO;
+                saveBtn.enabled = YES;
+            }
+        } @catch (NSException *e) {}
+    }
+}
+
+- (void)markMediaAsConsumed {
+    BOOL enabled = [[NSUserDefaults standardUserDefaults] boolForKey:kEnableViewOnceBypass];
+    if (enabled) {
+        return; // Keep view-once photo alive so it can be re-opened
+    }
+    %orig;
+}
+
+%end
+
+// 5. Hide Stories Bar Header in Chat List
+%hook ChatListStoriesContainerNode
+
+- (CGSize)calculateSizeThatFits:(CGSize)constrainedSize {
+    BOOL hide = [[NSUserDefaults standardUserDefaults] boolForKey:kHideStoriesBar];
+    if (hide) {
+        return CGSizeZero;
+    }
+    return %orig;
 }
 
 %end

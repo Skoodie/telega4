@@ -150,9 +150,9 @@ typedef NS_ENUM(NSInteger, TABLE_VIEW_SECTIONS) {
 		case GHOST_MODE:
 		   return 17;
 		case READ_RECEIPT:
-		   return 2;
+		   return 3;
 		case MISC:
-		   return 6;
+		   return 7;
 		case FILE_FIXER:
 		   return 2;
 		case FAKE_LOCATION:
@@ -312,6 +312,10 @@ typedef NS_ENUM(NSInteger, TABLE_VIEW_SECTIONS) {
 			cell.textLabel.text = TGLoc(@"DISABLE_STORY_READ_RECEIPT_TITLE");
 			cell.detailTextLabel.text = TGLoc(@"DISABLE_STORY_READ_RECEIPT_SUBTITLE");
 		}
+		else if (indexPath.row == 2) {
+			cell.textLabel.text = @"Скрытные голосовые и кружки";
+			cell.detailTextLabel.text = @"Прослушивание аудио и просмотр видео без отметки о воспроизведении";
+		}
 
 		UISwitch *toggle = (UISwitch *)cell.accessoryView;
 		if (!toggle || ![toggle isKindOfClass:[UISwitch class]]) {
@@ -355,6 +359,10 @@ typedef NS_ENUM(NSInteger, TABLE_VIEW_SECTIONS) {
 		else if (indexPath.row == 5) {
 			cell.textLabel.text = @"Подтверждение звонка";
 			cell.detailTextLabel.text = @"Показывает подтверждающий диалог перед началом вызова";
+		}
+		else if (indexPath.row == 6) {
+			cell.textLabel.text = @"Скрыть полоску со Stories";
+			cell.detailTextLabel.text = @"Убирает блок историй над чатами для максимальной чистоты экрана";
 		}
 
 		UISwitch *toggle = (UISwitch *)cell.accessoryView;
@@ -603,6 +611,7 @@ typedef NS_ENUM(NSInteger, TABLE_VIEW_SECTIONS) {
             switch (indexPath.row) {
                 case 0: return kDisableMessageReadReceipt;
                 case 1: return kDisableStoriesReadReceipt;
+                case 2: return kDisableVoiceReadReceipt;
                 default: return nil;
             }
         case 2:
@@ -613,6 +622,7 @@ typedef NS_ENUM(NSInteger, TABLE_VIEW_SECTIONS) {
                 case 3: return kEnableHighQualityVideoNotes;
                 case 4: return kEnableViewOnceBypass;
                 case 5: return kEnableCallConfirmation;
+                case 6: return kHideStoriesBar;
                 default: return nil;
             }
         case 3:

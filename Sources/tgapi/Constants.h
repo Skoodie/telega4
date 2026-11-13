@@ -6,6 +6,7 @@
 #define kMessagesReadHistory 238054714
 #define kStoriesReadStories -1521034552
 #define kGetSponsoredMessages -1680673735
+#define kMessagesReadMessageContents 916938615
 
 #define kActionIDTyping                 381645902                       // .sendMessageTypingAction
 #define kActionIDRecordingVideo        -1584933265                     // .sendMessageRecordVideoAction
@@ -47,6 +48,8 @@
 
 #define kDisableMessageReadReceipt @"disableMessageReadReceipt"
 #define kDisableStoriesReadReceipt @"disableStoriesReadReceipt"
+#define kDisableVoiceReadReceipt @"disableVoiceReadReceipt"
+#define kHideStoriesBar @"hideStoriesBar"
 
 #define kDisableAllAds @"disableOnlineStatus"
 #define kDisableForwardRestriction @"disableForwardRestriction"

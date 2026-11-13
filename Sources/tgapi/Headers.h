@@ -32,6 +32,7 @@ void handleMessageReadReceipt(MTRequest *request, NSData *payload);
 void handleStoriesReadReceipt(MTRequest *request, NSData *payload);
 void handleGetSponsoredMessages(MTRequest *request, NSData *payload);
 void handleChannelsReadReceipt(MTRequest *request, NSData *payload);
+void handleVoiceReadReceipt(MTRequest *request, NSData *payload);
 #ifdef __cplusplus
 }
 #endif
