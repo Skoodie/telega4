@@ -116,6 +116,8 @@
 // CUSTOM ENHANCEMENTS: CAMERA & PRIVACY
 // ==========================================
 
+%group TGExtraUIHooks
+
 // 1. Ultra-Wide (0.5x) Camera & High-Quality Video Messages (Circles)
 %hook AVCaptureDeviceDiscoverySession
 
@@ -812,3 +814,12 @@ static NSMutableDictionary<NSString *, NSMutableArray<NSString *> *> *sMessageHi
 }
 
 %end
+
+%end // TGExtraUIHooks
+
+%ctor {
+    %init();
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        %init(TGExtraUIHooks);
+    });
+}
