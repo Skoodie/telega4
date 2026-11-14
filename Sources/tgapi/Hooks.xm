@@ -124,16 +124,19 @@
 + (instancetype)discoverySessionWithDeviceTypes:(NSArray *)deviceTypes 
                                       mediaType:(NSString *)mediaType 
                                        position:(NSInteger)position {
-    BOOL enabled = [[NSUserDefaults standardUserDefaults] boolForKey:kEnableUltraWideCamera];
-    if (enabled) {
-        if (@available(iOS 13.0, *)) {
-            NSMutableArray *newTypes = [deviceTypes mutableCopy];
-            if (![newTypes containsObject:AVCaptureDeviceTypeBuiltInUltraWideCamera]) {
-                [newTypes addObject:AVCaptureDeviceTypeBuiltInUltraWideCamera];
+    @try {
+        BOOL enabled = [[NSUserDefaults standardUserDefaults] boolForKey:kEnableUltraWideCamera];
+        if (enabled && @available(iOS 13.0, *)) {
+            // Only add ultra wide for back camera (position == 1) and video media type!
+            if (position == AVCaptureDevicePositionBack && [mediaType isEqualToString:AVMediaTypeVideo]) {
+                NSMutableArray *newTypes = [deviceTypes mutableCopy];
+                if (![newTypes containsObject:AVCaptureDeviceTypeBuiltInUltraWideCamera]) {
+                    [newTypes addObject:AVCaptureDeviceTypeBuiltInUltraWideCamera];
+                }
+                return %orig(newTypes, mediaType, position);
             }
-            return %orig(newTypes, mediaType, position);
         }
-    }
+    } @catch (NSException *e) {}
     return %orig;
 }
 
@@ -143,10 +146,12 @@
 %hook UIApplication
 
 - (void)userDidTakeScreenshotNotification:(NSNotification *)notification {
-    BOOL enabled = [[NSUserDefaults standardUserDefaults] boolForKey:kEnableViewOnceBypass];
-    if (enabled) {
-        return; // Suppress screenshot notification
-    }
+    @try {
+        BOOL enabled = [[NSUserDefaults standardUserDefaults] boolForKey:kEnableViewOnceBypass];
+        if (enabled) {
+            return; // Suppress screenshot notification
+        }
+    } @catch (NSException *e) {}
     %orig;
 }
 
@@ -156,29 +161,33 @@
 %hook ChatController
 
 - (void)startCall:(BOOL)isVideo {
-    BOOL enabled = [[NSUserDefaults standardUserDefaults] boolForKey:kEnableCallConfirmation];
-    if (!enabled) {
-        %orig(isVideo);
+    @try {
+        BOOL enabled = [[NSUserDefaults standardUserDefaults] boolForKey:kEnableCallConfirmation];
+        if (!enabled) {
+            %orig(isVideo);
+            return;
+        }
+        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Подтверждение звонка"
+                                                                       message:@"Вы уверены, что хотите позвонить?"
+                                                                preferredStyle:UIAlertControllerStyleAlert];
+        
+        UIAlertAction *callAction = [UIAlertAction actionWithTitle:@"Позвонить" 
+                                                             style:UIAlertActionStyleDefault 
+                                                           handler:^(UIAlertAction *action) {
+            %orig(isVideo);
+        }];
+        
+        UIAlertAction *cancelAction = [UIAlertAction actionWithTitle:@"Отмена" 
+                                                               style:UIAlertActionStyleCancel 
+                                                             handler:nil];
+        
+        [alert addAction:callAction];
+        [alert addAction:cancelAction];
+        
+        [self presentViewController:alert animated:YES completion:nil];
         return;
-    }
-    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Подтверждение звонка"
-                                                                   message:@"Вы уверены, что хотите позвонить?"
-                                                            preferredStyle:UIAlertControllerStyleAlert];
-    
-    UIAlertAction *callAction = [UIAlertAction actionWithTitle:@"Позвонить" 
-                                                         style:UIAlertActionStyleDefault 
-                                                       handler:^(UIAlertAction *action) {
-        %orig(isVideo);
-    }];
-    
-    UIAlertAction *cancelAction = [UIAlertAction actionWithTitle:@"Отмена" 
-                                                           style:UIAlertActionStyleCancel 
-                                                         handler:nil];
-    
-    [alert addAction:callAction];
-    [alert addAction:cancelAction];
-    
-    [self presentViewController:alert animated:YES completion:nil];
+    } @catch (NSException *e) {}
+    %orig(isVideo);
 }
 
 %end
@@ -188,9 +197,9 @@
 
 - (void)viewWillAppear:(BOOL)animated {
     %orig;
-    BOOL enabled = [[NSUserDefaults standardUserDefaults] boolForKey:kEnableViewOnceBypass];
-    if (enabled) {
-        @try {
+    @try {
+        BOOL enabled = [[NSUserDefaults standardUserDefaults] boolForKey:kEnableViewOnceBypass];
+        if (enabled) {
             NSTimer *timer = [self valueForKey:@"destroyTimer"];
             if (timer) {
                 [timer invalidate];
@@ -200,15 +209,17 @@
                 saveBtn.hidden = NO;
                 saveBtn.enabled = YES;
             }
-        } @catch (NSException *e) {}
-    }
+        }
+    } @catch (NSException *e) {}
 }
 
 - (void)markMediaAsConsumed {
-    BOOL enabled = [[NSUserDefaults standardUserDefaults] boolForKey:kEnableViewOnceBypass];
-    if (enabled) {
-        return; // Keep view-once photo alive so it can be re-opened
-    }
+    @try {
+        BOOL enabled = [[NSUserDefaults standardUserDefaults] boolForKey:kEnableViewOnceBypass];
+        if (enabled) {
+            return; // Keep view-once photo alive so it can be re-opened
+        }
+    } @catch (NSException *e) {}
     %orig;
 }
 
@@ -218,81 +229,12 @@
 %hook ChatListStoriesContainerNode
 
 - (CGSize)calculateSizeThatFits:(CGSize)constrainedSize {
-    BOOL hide = [[NSUserDefaults standardUserDefaults] boolForKey:kHideStoriesBar];
-    if (hide) {
-        return CGSizeZero;
-    }
-    return %orig;
-}
-
-%end
-
-// ==========================================
-// BYPASS RESTRICTIONS & APPLE CENSORSHIP
-// ==========================================
-
-// 6. Bypass Apple Censorship & Restricted Channels
-%hook TelegramChannel
-
-- (NSArray *)restrictionInfo {
-    BOOL bypass = [[NSUserDefaults standardUserDefaults] boolForKey:kBypassAppleCensorship];
-    if (bypass) {
-        return nil; // Strip all restriction reasons for iOS
-    }
-    return %orig;
-}
-
-- (BOOL)hasRestrictionReasons {
-    BOOL bypass = [[NSUserDefaults standardUserDefaults] boolForKey:kBypassAppleCensorship];
-    if (bypass) {
-        return NO;
-    }
-    return %orig;
-}
-
-%end
-
-// 7. Universal Copy & Forward Protection Unlocker
-%hook ChatHistoryNode
-
-- (BOOL)hasCopyProtection {
-    BOOL unlock = [[NSUserDefaults standardUserDefaults] boolForKey:kUnlockCopyProtection];
-    if (unlock) {
-        return NO;
-    }
-    return %orig;
-}
-
-%end
-
-%hook ChatMessageItem
-
-- (BOOL)canForward {
-    BOOL unlock = [[NSUserDefaults standardUserDefaults] boolForKey:kUnlockCopyProtection];
-    if (unlock) {
-        return YES;
-    }
-    return %orig;
-}
-
-- (BOOL)canSaveMedia {
-    BOOL unlock = [[NSUserDefaults standardUserDefaults] boolForKey:kUnlockCopyProtection];
-    if (unlock) {
-        return YES;
-    }
-    return %orig;
-}
-
-%end
-
-// 8. Unlimited Pinned Chats (Up to 100 pinned dialogs)
-%hook ChatListController
-
-- (NSInteger)maxPinnedChatCount {
-    BOOL unlimited = [[NSUserDefaults standardUserDefaults] boolForKey:kUnlimitedPinnedChats];
-    if (unlimited) {
-        return 100;
-    }
+    @try {
+        BOOL hide = [[NSUserDefaults standardUserDefaults] boolForKey:kHideStoriesBar];
+        if (hide) {
+            return CGSizeMake(constrainedSize.width, 0.01);
+        }
+    } @catch (NSException *e) {}
     return %orig;
 }
 
@@ -302,107 +244,117 @@
 // SAFETY & ACCIDENTAL ACTION PROTECTION
 // ==========================================
 
-#import <LocalAuthentication/LocalAuthentication.h>
-
-// 9. Sticker Send Confirmation
+// 6. Sticker Send Confirmation
 %hook ChatController
 
 - (void)sendSticker:(id)sticker {
-    BOOL confirm = [[NSUserDefaults standardUserDefaults] boolForKey:kConfirmStickerSend];
-    if (!confirm) {
-        %orig(sticker);
+    @try {
+        BOOL confirm = [[NSUserDefaults standardUserDefaults] boolForKey:kConfirmStickerSend];
+        if (!confirm) {
+            %orig(sticker);
+            return;
+        }
+        
+        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Отправка стикера"
+                                                                       message:@"Вы действительно хотите отправить этот стикер?"
+                                                                preferredStyle:UIAlertControllerStyleAlert];
+        
+        UIAlertAction *sendAction = [UIAlertAction actionWithTitle:@"Отправить" 
+                                                             style:UIAlertActionStyleDefault 
+                                                           handler:^(UIAlertAction *action) {
+            %orig(sticker);
+        }];
+        
+        UIAlertAction *cancelAction = [UIAlertAction actionWithTitle:@"Отмена" 
+                                                               style:UIAlertActionStyleCancel 
+                                                             handler:nil];
+        
+        [alert addAction:sendAction];
+        [alert addAction:cancelAction];
+        
+        [self presentViewController:alert animated:YES completion:nil];
         return;
-    }
-    
-    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Отправка стикера"
-                                                                   message:@"Вы действительно хотите отправить этот стикер?"
-                                                            preferredStyle:UIAlertControllerStyleAlert];
-    
-    UIAlertAction *sendAction = [UIAlertAction actionWithTitle:@"Отправить" 
-                                                         style:UIAlertActionStyleDefault 
-                                                       handler:^(UIAlertAction *action) {
-        %orig(sticker);
-    }];
-    
-    UIAlertAction *cancelAction = [UIAlertAction actionWithTitle:@"Отмена" 
-                                                           style:UIAlertActionStyleCancel 
-                                                         handler:nil];
-    
-    [alert addAction:sendAction];
-    [alert addAction:cancelAction];
-    
-    [self presentViewController:alert animated:YES completion:nil];
+    } @catch (NSException *e) {}
+    %orig(sticker);
 }
 
-// 10. Voice / Video Message Send Confirmation
+// 7. Voice / Video Message Send Confirmation
 - (void)sendVoiceMessage:(id)voiceMessage {
-    BOOL confirm = [[NSUserDefaults standardUserDefaults] boolForKey:kConfirmVoiceSend];
-    if (!confirm) {
-        %orig(voiceMessage);
+    @try {
+        BOOL confirm = [[NSUserDefaults standardUserDefaults] boolForKey:kConfirmVoiceSend];
+        if (!confirm) {
+            %orig(voiceMessage);
+            return;
+        }
+        
+        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Отправка аудио"
+                                                                       message:@"Отправить записанное голосовое / видео сообщение?"
+                                                                preferredStyle:UIAlertControllerStyleAlert];
+        
+        UIAlertAction *sendAction = [UIAlertAction actionWithTitle:@"Отправить" 
+                                                             style:UIAlertActionStyleDefault 
+                                                           handler:^(UIAlertAction *action) {
+            %orig(voiceMessage);
+        }];
+        
+        UIAlertAction *cancelAction = [UIAlertAction actionWithTitle:@"Отмена" 
+                                                               style:UIAlertActionStyleCancel 
+                                                             handler:nil];
+        
+        [alert addAction:sendAction];
+        [alert addAction:cancelAction];
+        
+        [self presentViewController:alert animated:YES completion:nil];
         return;
-    }
-    
-    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Отправка аудио"
-                                                                   message:@"Отправить записанное голосовое / видео сообщение?"
-                                                            preferredStyle:UIAlertControllerStyleAlert];
-    
-    UIAlertAction *sendAction = [UIAlertAction actionWithTitle:@"Отправить" 
-                                                         style:UIAlertActionStyleDefault 
-                                                       handler:^(UIAlertAction *action) {
-        %orig(voiceMessage);
-    }];
-    
-    UIAlertAction *cancelAction = [UIAlertAction actionWithTitle:@"Отмена" 
-                                                           style:UIAlertActionStyleCancel 
-                                                         handler:nil];
-    
-    [alert addAction:sendAction];
-    [alert addAction:cancelAction];
-    
-    [self presentViewController:alert animated:YES completion:nil];
+    } @catch (NSException *e) {}
+    %orig(voiceMessage);
 }
 
-// 11. Send Messages Silently by Default
+// 8. Send Messages Silently by Default
 - (BOOL)shouldSendSilently {
-    BOOL silent = [[NSUserDefaults standardUserDefaults] boolForKey:kSilentSendByDefault];
-    if (silent) {
-        return YES;
-    }
+    @try {
+        BOOL silent = [[NSUserDefaults standardUserDefaults] boolForKey:kSilentSendByDefault];
+        if (silent) {
+            return YES;
+        }
+    } @catch (NSException *e) {}
     return %orig;
 }
 
 %end
 
-// 12. Face ID Biometric Lock for Secret / Encrypted Chats
+// 9. Face ID Biometric Lock for Secret / Encrypted Chats
 %hook SecretChatController
 
 - (void)viewWillAppear:(BOOL)animated {
     %orig;
-    BOOL lockEnabled = [[NSUserDefaults standardUserDefaults] boolForKey:kLockChatWithFaceID];
-    if (!lockEnabled) {
-        return;
-    }
-    
-    LAContext *context = [[LAContext alloc] init];
-    NSError *authError = nil;
-    NSString *reason = @"Подтвердите личность через Face ID для входа в защищенный чат";
-    
-    if ([context canEvaluatePolicy:LAPolicyDeviceOwnerAuthenticationWithBiometrics error:&authError]) {
-        self.view.alpha = 0.0; // Hide chat contents until verified
-        [context evaluatePolicy:LAPolicyDeviceOwnerAuthenticationWithBiometrics 
-                localizedReason:reason 
-                          reply:^(BOOL success, NSError *error) {
-            dispatch_async(dispatch_get_main_queue(), ^{
-                if (success) {
-                    [UIView animateWithDuration:0.25 animations:^{
-                        self.view.alpha = 1.0;
-                    }];
-                } else {
-                    [self.navigationController popViewControllerAnimated:YES];
-                }
-            });
-        }];
-    }
+    @try {
+        BOOL lockEnabled = [[NSUserDefaults standardUserDefaults] boolForKey:kLockChatWithFaceID];
+        if (!lockEnabled) {
+            return;
+        }
+        
+        LAContext *context = [[LAContext alloc] init];
+        NSError *authError = nil;
+        NSString *reason = @"Подтвердите личность через Face ID для входа в защищенный чат";
+        
+        if ([context canEvaluatePolicy:LAPolicyDeviceOwnerAuthenticationWithBiometrics error:&authError]) {
+            self.view.alpha = 0.0; // Hide chat contents until verified
+            [context evaluatePolicy:LAPolicyDeviceOwnerAuthenticationWithBiometrics 
+                    localizedReason:reason 
+                              reply:^(BOOL success, NSError *error) {
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    if (success) {
+                        [UIView animateWithDuration:0.25 animations:^{
+                            self.view.alpha = 1.0;
+                        }];
+                    } else {
+                        [self.navigationController popViewControllerAnimated:YES];
+                    }
+                });
+            }];
+        }
+    } @catch (NSException *e) {}
 }
 
 %end
