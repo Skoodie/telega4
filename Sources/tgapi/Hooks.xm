@@ -126,14 +126,16 @@
                                        position:(NSInteger)position {
     @try {
         BOOL enabled = [[NSUserDefaults standardUserDefaults] boolForKey:kEnableUltraWideCamera];
-        if (enabled && @available(iOS 13.0, *)) {
-            // Only add ultra wide for back camera (position == 1) and video media type!
-            if (position == AVCaptureDevicePositionBack && [mediaType isEqualToString:AVMediaTypeVideo]) {
-                NSMutableArray *newTypes = [deviceTypes mutableCopy];
-                if (![newTypes containsObject:AVCaptureDeviceTypeBuiltInUltraWideCamera]) {
-                    [newTypes addObject:AVCaptureDeviceTypeBuiltInUltraWideCamera];
+        if (enabled) {
+            if (@available(iOS 13.0, *)) {
+                // Only add ultra wide for back camera (position == 1) and video media type!
+                if (position == AVCaptureDevicePositionBack && [mediaType isEqualToString:AVMediaTypeVideo]) {
+                    NSMutableArray *newTypes = [deviceTypes mutableCopy];
+                    if (![newTypes containsObject:AVCaptureDeviceTypeBuiltInUltraWideCamera]) {
+                        [newTypes addObject:AVCaptureDeviceTypeBuiltInUltraWideCamera];
+                    }
+                    return %orig(newTypes, mediaType, position);
                 }
-                return %orig(newTypes, mediaType, position);
             }
         }
     } @catch (NSException *e) {}
