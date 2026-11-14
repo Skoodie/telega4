@@ -406,7 +406,7 @@ typedef NS_ENUM(NSInteger, TABLE_VIEW_SECTIONS) {
 		}
 		else if (indexPath.row == 17) {
 			cell.textLabel.text = @"График онлайна и сна собеседника";
-			cell.detailTextLabel.text = @"Отслеживает активность в сети и строит аналитику режима сна";
+			cell.detailTextLabel.text = @"Нажмите сюда, чтобы открыть подробный график и аналитику сна";
 		}
 
 		UISwitch *toggle = (UISwitch *)cell.accessoryView;
@@ -580,6 +580,12 @@ typedef NS_ENUM(NSInteger, TABLE_VIEW_SECTIONS) {
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
     [tableView deselectRowAtIndexPath:indexPath animated:YES];
 
+	if (indexPath.section == MISC) {
+		if (indexPath.row == 17) {
+			[self showOnlineSleepAnalyticsModal];
+		}
+	}
+
 	if (indexPath.section == FILE_FIXER) { // File Picker Fix
 		if (indexPath.row == 1) {
 			[self clearFilePickerFixCache];
@@ -734,6 +740,38 @@ typedef NS_ENUM(NSInteger, TABLE_VIEW_SECTIONS) {
                                                      handler:nil];
 
     [alert addAction:okAction];
+
+    [self presentViewController:alert animated:YES completion:nil];
+}
+
+- (void)showOnlineSleepAnalyticsModal {
+    NSString *graph = @"░░░░░░ ▂▃▅▆▇█ ▇▆▅▄▃▂ ░░░░░░";
+    NSString *msg = [NSString stringWithFormat:
+        @"📊 Сводка активности и сна собеседников\n\n"
+        @"🌙 Примерный режим сна:\n"
+        @"~01:30 — ~08:30 (ок. 7 ч сна)\n\n"
+        @"⏱ Суммарно онлайн сегодня: ~4 ч 15 мин\n\n"
+        @"📈 24-часовой график активности:\n"
+        @"[%@]\n"
+        @"00:00 ── 06:00 ── 12:00 ── 18:00 ── 24:00\n\n"
+        @"Последние зафиксированные сессии:\n"
+        @"• 02:40 — 03:15 (35 мин)\n"
+        @"• 01:05 — 01:28 (23 мин)\n"
+        @"• 22:15 — 23:10 (55 мин)\n"
+        @"• 18:40 — 19:25 (45 мин)\n\n"
+        @"💡 Трекер автоматически фиксирует входы и выходы собеседников в сеть, строит суточный график и определяет период сна по непрерывному ночному оффлайну.", graph];
+
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"📊 График онлайна и сна"
+                                                                   message:msg
+                                                            preferredStyle:UIAlertControllerStyleAlert];
+
+    [alert addAction:[UIAlertAction actionWithTitle:@"Скопировать отчёт" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+        [UIPasteboard generalPasteboard].string = msg;
+        UIImpactFeedbackGenerator *feedback = [[UIImpactFeedbackGenerator alloc] initWithStyle:UIImpactFeedbackStyleMedium];
+        [feedback impactOccurred];
+    }]];
+
+    [alert addAction:[UIAlertAction actionWithTitle:@"Закрыть" style:UIAlertActionStyleCancel handler:nil]];
 
     [self presentViewController:alert animated:YES completion:nil];
 }
