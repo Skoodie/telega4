@@ -12,6 +12,15 @@
 @interface TGSecretMediaViewer : UIViewController
 @end
 
+@interface PeerInfoHeaderNode : NSObject
+- (UIView *)view;
+- (void)__tgextra_showSleepAndOnlineAnalytics:(int64_t)peerIdVal;
+@end
+
+@interface ChatMessageItemNode : NSObject
+- (UIView *)view;
+@end
+
 #define kChannelsReadHistory -871347913
 
 %hook MTRequest
